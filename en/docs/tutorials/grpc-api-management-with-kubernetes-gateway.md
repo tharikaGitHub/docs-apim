@@ -3,7 +3,7 @@
 ## Introduction
 gRPC is a modern, open-source, high-performance RPC (Remote Procedure Call) framework that can run in any environment. It is designed to allow a client application to directly call a method on a server application located on a different machine, as if it were a local object. It supports both synchronous and asynchronous communication, and is ideal for use cases that require high performance and minimal latency.
 
-Even with gRPC’s performance benefits, running an API without proper governance is risky; you need proper API management with added features like authentication, rate limiting, policy enforcement, and analytics. This is where WSO2 Kubernetes Gateway comes in, by providing all of these features necessary to properly manage and expose gRPC APIs to your consumers.
+Even with gRPC’s performance benefits, running an API without proper governance is risky. You need proper API management with added features like authentication, rate limiting, policy enforcement, and analytics. This is where WSO2 Kubernetes Gateway comes in, by providing all of these features necessary to properly manage and expose gRPC APIs to your consumers.
 
 Similar to how REST APIs use OpenAPI specifications, gRPC APIs use Protocol Buffer (protobuf) definitions to describe services. You can use these protobuf definitions to design a gRPC API in the WSO2 Kubernetes Gateway.
 
@@ -16,7 +16,7 @@ Before we begin, you’ll need to set up the following in your development envir
 3. Kubectl installed locally
 4. [WSO2 Kubernetes Gateway](https://apk.docs.wso2.com/en/latest/) deployed in your cluster
 
-Once you have the above prerequisites installed, let’s walk through the steps of creating, deploying and invoking a gRPC API securely. And then let's see how to configure rate limiting, enable header modification and enable request response mediation for the gRPC API we just created.
+Once you have the above prerequisites installed, let’s walk through the steps of creating, deploying and invoking a gRPC API securely. And then let's see how to customize OAuth2 authentication,  configure rate limiting, enable header modification and enable request response mediation for the gRPC API we just created.
 
 ### Step 1: Create the backend for the gRPC API
 
@@ -36,11 +36,11 @@ kubectl get pods -n <namespace>
 
 ### Step 2: Generate the configuration file for the API
 
-In the WSO2 Kubernetes Gateway, the apk-conf file is essentially the API configuration blueprint. It’s a YAML-based file that lets you configure all the necessary details related to a particular API. It can be generated easily by providing the API definition to the config deployer, as explained in the steps given below.
+In the [WSO2 Kubernetes Gateway]((https://apk.docs.wso2.com/en/latest/)), the `apk-conf` file is essentially the API configuration blueprint. It’s a YAML-based file that lets you configure all the necessary details related to a particular API. It can be generated easily by providing the API definition to the config deployer, as explained in the steps given below.
 
-For a gRPC API, the API definition is in the form of .proto files, of which there can be multiple for a single API. In this tutorial, we will be using an API that contains multiple .proto files that have been zipped. You can download the zip folder from [here](https://apk.docs.wso2.com/en/latest/create-api/create-and-deploy-apis/grpc/create-grpc-api-with-multiple-proto-files.html#step-1-obtain-the-proto-files-for-the-given-api).
+For a gRPC API, the API definition is in the form of `.proto` files, of which there can be multiple for a single API. In this tutorial, we will be using an API that contains multiple `.proto` files that have been zipped. You can download the zip folder from [here](https://apk.docs.wso2.com/en/latest/create-api/create-and-deploy-apis/grpc/create-grpc-api-with-multiple-proto-files.html#step-1-obtain-the-proto-files-for-the-given-api).
 
-Now point to the location of the .zip file and generate the apk-conf file using the following command.
+Now point to the location of the zip file and generate the `apk-conf` file using the following command.
 
 ```bash
 curl -k --location 'https://api.example.com:9095/api/configurator/1.3.0/apis/generate-configuration' \
@@ -49,13 +49,13 @@ curl -k --location 'https://api.example.com:9095/api/configurator/1.3.0/apis/gen
 --form 'definition=@"/Users/user/OrderDefinition.zip"'
 ```
 
-The response will contain the configuration file content, which will be saved as `SampleService.apk-conf`. You can verify the saved content by running
+The response will contain the configuration file content, which will be saved as `SampleService.apk-conf`. You can verify the saved content by running the following command.
 
 ```bash
 cat OrderService.apk-conf
 ```
 
-The output will appear as fllows.
+The output will appear as follows.
 
 ```toml
 name: "32398767b3b64a7ba1c6aabcd042df4fbd42502a"
@@ -90,42 +90,42 @@ Save this content into a file with the `.apk-conf` file extension. You will need
 1. Update the API name from the autogenerated value to `OrderServiceAPI`.
 2. Add an endpoint configurations section pointing to the backend we just created as shown below.
 
-```toml
-endpointConfigurations:
-    production:
-        - endpoint: "http://order-backend:6566"
-```
+    ```toml
+    endpointConfigurations:
+        production:
+            - endpoint: "http://order-backend:6566"
+    ```
 
-Now the `.apk-conf` file will be as follows.
+    Now the `.apk-conf` file will be as follows.
 
-```toml
-name: "OrderServiceAPI"
-basePath: "/grpcapi"
-version: "v1"
-type: "GRPC"
-defaultVersion: false
-subscriptionValidation: false
-endpointConfigurations:
-    production:
-        - endpoint: "http://order-backend:6566"
-operations:
-- target: "order.OrderService"
-    verb: "CreateOrder"
-    secured: true
-    scopes: []
-- target: "order.OrderService"
-    verb: "ServeOrder"
-    secured: true
-    scopes: []
-- target: "payment.PaymentService"
-    verb: "ProcessPayment"
-    secured: true
-    scopes: []
-- target: "user.UserService"
-    verb: "GetUser"
-    secured: true
-    scopes: []
-```
+    ```toml
+    name: "OrderServiceAPI"
+    basePath: "/grpcapi"
+    version: "v1"
+    type: "GRPC"
+    defaultVersion: false
+    subscriptionValidation: false
+    endpointConfigurations:
+        production:
+            - endpoint: "http://order-backend:6566"
+    operations:
+    - target: "order.OrderService"
+        verb: "CreateOrder"
+        secured: true
+        scopes: []
+    - target: "order.OrderService"
+        verb: "ServeOrder"
+        secured: true
+        scopes: []
+    - target: "payment.PaymentService"
+        verb: "ProcessPayment"
+        secured: true
+        scopes: []
+    - target: "user.UserService"
+        verb: "GetUser"
+        secured: true
+        scopes: []
+    ```
 
 ### Step 4: Deploy the API
 
@@ -180,16 +180,94 @@ default.gw.example.com:9095 grpcapi.v1.user.UserService/GetUser
 
 You will get the following response.
 
-[![gRPC API invocation]({{base_path}}/assets/img/tutorials/grpc/grpc-api-invocation.png)]({{base_path}}/assets/img/tutorials/grpc/grpc-api-invocation.png)
+```bash
+{
+  "user": {
+    "id": "1",
+    "name": "John Doe",
+    "email": "john.doe@example.com"
+  }
+}
+```
 
 Now you have successfully created, deployed and invoked a gRPC API. Next we will look at how to add more protection and enhance the capabilities of the API as follows.
 
-1. [Configure OAuth2 authentication for a gRPC API](#configure-oauth2-authentication-for-a-grpc-api)
+1. [Customizing OAuth2 authentication for a gRPC API](#customizing-oauth2-authentication-for-a-grpc-api)
 2. [Configure rate-limiting for a gRPC API](#configure-rate-limiting-for-a-grpc-api)
 3. [Enable header modification for a gRPC API](#enable-header-modification-for-a-grpc-api)
 4. [Enable request and response mediation for a gRPC API](#enable-request-and-response-mediation-for-a-grpc-api)
 
-### Configure OAuth2 authentication for a gRPC API
+### Customizing OAuth2 authentication for a gRPC API
+
+OAuth2 ensures only trusted clients with a valid access token can call your API. By default, OAuth2 is enabled for all APIs and the gateway expects the token in the Authorization header. You only need to add an authentication section (as shown below) if you want to change the header name or behavior.
+
+a. To customize the header name and allow the token to pass to the backend, you can modify the `authentication` section in the `apk-conf` file as follows. Let’s switch the header name to `X-Api-Auth`.
+
+  ```toml
+  authentication:
+    - authType: OAuth2
+      headerName: X-Api-Auth
+      sendTokenToUpstream: true
+  ```
+
+??? info "Sample apk-conf with the above change"
+    ```toml
+      name: "OrderServiceAPI"
+      basePath: "/grpcapi"
+      version: "v1"
+      type: "GRPC"
+      defaultVersion: false
+      subscriptionValidation: false
+      endpointConfigurations:
+        production:
+          - endpoint: "http://order-backend:6566"
+      operations:
+        - target: "order.OrderService"
+          verb: "CreateOrder"
+          secured: true
+          scopes: []
+        - target: "order.OrderService"
+          verb: "ServeOrder"
+          secured: true
+          scopes: []
+        - target: "payment.PaymentService"
+          verb: "ProcessPayment"
+          secured: true
+          scopes: []
+        - target: "user.UserService"
+          verb: "GetUser"
+          secured: true
+          scopes: []
+      # Customize OAuth2 header handling (optional; OAuth2 is on by default)
+      authentication:
+        - authType: OAuth2
+          headerName: X-Api-Auth # default; change if you like
+          sendTokenToUpstream: true # forwards the token to the backend
+    ```
+
+b. Redeploy the API using the following command that we used previously to deploy the API.
+
+```bash
+curl -k --location 'https://api.example.com:9095/api/deployer/1.3.0/apis/deploy' \
+--header 'Host: api.example.com' \
+--header 'Authorization: Bearer ACCESS_TOKEN \
+--form 'apkConfiguration=@"/Users/user/Order.apk-conf"' \
+--form 'definitionFile=@"/Users/user/OrderDefinition.zip"'
+```
+
+c. Invoke the API, this time with the `X-API-Auth` header instead of the Authorization header.
+
+```bash
+grpcurl -insecure \
+  -import-path /Users/User/proto-files \
+  -proto common.proto \
+  -proto user.proto \
+  -proto payment.proto \
+  -proto order.proto \
+  -d '{"id":"1"}' \
+  -H 'X-Api-Auth: Bearer ACCESS_TOKEN' \
+  default.gw.example.com:9095 grpcapi.v1.user.UserService/GetUser
+```
 
 ### Configure rate-limiting for a gRPC API
 
@@ -199,7 +277,7 @@ Rate Limiting allows you to limit the number of successful hits to an API during
 2. To regulate traffic according to infrastructure availability.
 3. To make an API or a resource available to a consumer at different levels of the service, usually for monetization purposes.
 
-a. To add rate limiting to a gRPC API, you can add a section similar to the following in the `apk-conf` file.
+To add rate limiting to a gRPC API, you can add a section similar to the following in the `apk-conf` file.
 
 ```bash
 rateLimit:
@@ -207,7 +285,7 @@ rateLimit:
   unit: "Minute"
 ```
 
-b. You can also configure it from either the API level or resource level as follows. 
+a. You can configure it from either the API level or resource level as follows. 
 
 ```toml
 name: "OrderServiceAPI"
@@ -247,7 +325,7 @@ rateLimit:
   unit: "Minute"
 ```
 
-c. Now, let’s redeploy the API using the following command that we used previously to deploy the API
+b. Now, let’s redeploy the API using the following command that we used previously to deploy the API
 
 ```bash
 curl -k --location 'https://api.example.com:9095/api/deployer/1.3.0/apis/deploy' \
@@ -257,7 +335,7 @@ curl -k --location 'https://api.example.com:9095/api/deployer/1.3.0/apis/deploy'
 --form 'definitionFile=@"/Users/user/OrderDefinition.zip"'
 ```
 
-d. Now let’s invoke the API and note how it gets rate limited out
+c. Now let’s invoke the API and note how it gets rate limited out
 
 [![gRPC API rate limiting]({{base_path}}/assets/img/tutorials/grpc/grpc-rate-limit.png)]({{base_path}}/assets/img/tutorials/grpc/grpc-rate-limit.png)
 
@@ -269,7 +347,7 @@ WSO2 Kubernetes Gateway lets you change headers per operation or for the whole A
 - `SetHeader` — update/overwrite a header’s value
 - `RemoveHeader` — strip a header
 
-You’ll place these under either *operationPolicies* (per endpoint) or *apiPolicies* (API-wide). For example, adding the following section adds a header named `X-Debug` with the value `True` for all responses returned from the backend when the API is invoked.
+You can place these under either *operationPolicies* (per endpoint) or *apiPolicies* (API-wide). For example, adding the following section adds a header named `X-Debug` with the value `True` for all responses returned from the backend when the API is invoked.
 
 ```toml
 apiPolicies:
@@ -319,7 +397,7 @@ apiPolicies:
         headerValue: "True"
 ```
 
-b. Now, let’s redeploy the API using the following command that we used previously to deploy the API
+b. Now, let’s redeploy the API using the following command that we used previously to deploy the API.
 
 ```bash
 curl -k --location 'https://api.example.com:9095/api/deployer/1.3.0/apis/deploy' \
@@ -329,7 +407,7 @@ curl -k --location 'https://api.example.com:9095/api/deployer/1.3.0/apis/deploy'
 --form 'definitionFile=@"/Users/user/OrderDefinition.zip"'
 ```
 
-c. Now let’s generate an access token to invoke the API using the following command.
+c. Generate an access token to invoke the API using the following command.
 
 ```bash
 curl -k --location 'https://idp.example.com:9095/oauth2/token' \
@@ -340,7 +418,7 @@ curl -k --location 'https://idp.example.com:9095/oauth2/token' \
 --data-urlencode 'scope=apk:api_create'
 ```
 
-d. Now let’s invoke the API and see the added header in the response.
+d. Invoke the API and see the added header in the response.
 
 ```bash
 grpcurl -insecure \
@@ -365,3 +443,52 @@ Interceptor configurations can be used to carry out transformations and mediatio
 The following diagram demonstrates the flow for a request with both request and response mediation.
 
 [![gRPC interception diagram]({{base_path}}/assets/img/tutorials/grpc/grpc-interception.png)]({{base_path}}/assets/img/tutorials/grpc/grpc-interception.png)
+
+The following steps will show you how to setup an interceptor service to carry out the required transformations for requests and responses.
+
+1. Implement an interceptor microservice that follows the [Interceptor OpenAPI]({{base_path}}/assets/img/tutorials/grpc/interceptor-service-open-api-v1.yaml) (request/response hooks & payload shape). You can write it in any language.
+2. Expose it in Kubernetes (Service/Deployment).
+3. Register it with WSO2 Kubernetes Gateway by providing the service’s URL to the `apk-conf` file.
+
+??? Info - "Sample Interceptor Service"
+    You can create a sample interceptor service using the following file.
+    ```toml
+    apiVersion: dp.wso2.com/v1alpha2
+    kind: APIPolicy
+    metadata:
+      name: order-api-policy
+    spec:
+      override:
+        requestInterceptors:
+        - name: req-interceptor-service
+        responseInterceptors:
+        - name: res-interceptor-service
+      targetRef:
+        group: dp.wso2.com
+        kind: Gateway
+        name: wso2-apk-default
+    ---
+    apiVersion: dp.wso2.com/v1alpha1
+    kind: InterceptorService
+    metadata:
+      name: req-interceptor-service
+    spec:
+      backendRef:
+        name: interceptor-backend # Replace this with your interceptor service
+      includes:
+        - request_body
+        - request_headers
+        - invocation_context
+    ---
+    apiVersion: dp.wso2.com/v1alpha1
+    kind: InterceptorService
+    metadata:
+      name: res-interceptor-service
+    spec:
+      backendRef:
+        name: interceptor-backend # Replace this with your interceptor service
+      includes:
+      - response_headers
+      - response_body
+      - invocation_context
+    ```
